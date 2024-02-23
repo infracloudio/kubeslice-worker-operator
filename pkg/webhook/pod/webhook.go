@@ -290,7 +290,8 @@ func ValidateServiceExport(sExport *v1beta1.ServiceExport, seList *v1beta1.Servi
 
 	for _, serviceExport := range seList.Items {
 		// In case we are updating an existing ServiceExport resource
-		if sExport.ObjectMeta.Name == serviceExport.ObjectMeta.Name {
+		if sExport.ObjectMeta.Name == serviceExport.ObjectMeta.Name &&
+			sExport.ObjectMeta.Namespace == serviceExport.ObjectMeta.Namespace {
 			continue
 		}
 		existingAliases := serviceExport.Spec.Aliases
