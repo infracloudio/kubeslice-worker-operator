@@ -167,7 +167,7 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 		}
 
 		log.Info("validating serviceexport", "serviceexport spec", serviceexport.Spec)
-		validation, conflictingAlias := ValidateServiceExport(serviceexport.Spec, serviceExportList)
+		validation, conflictingAlias := ValidateServiceExport(serviceexport, serviceExportList)
 		if !validation {
 			log.Info("serviceexport validation failed: alias already exist", "serviceexport-name", serviceexport.ObjectMeta.Name)
 			return admission.Denied(fmt.Sprintf("Alias %s already exist", conflictingAlias))
@@ -284,11 +284,15 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	return ds
 }
 
-func ValidateServiceExport(spec v1beta1.ServiceExportSpec, seList *v1beta1.ServiceExportList) (bool, string) {
+func ValidateServiceExport(sExport *v1beta1.ServiceExport, seList *v1beta1.ServiceExportList) (bool, string) {
 
-	newAliases := spec.Aliases
+	newAliases := sExport.Spec.Aliases
 
 	for _, serviceExport := range seList.Items {
+		// In case we are updating an existing ServiceExport resource
+		if sExport.ObjectMeta.Name == serviceExport.ObjectMeta.Name {
+			continue
+		}
 		existingAliases := serviceExport.Spec.Aliases
 		for _, newAlias := range newAliases {
 			if aliasExist(existingAliases, newAlias) {
