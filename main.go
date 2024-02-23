@@ -128,6 +128,12 @@ func main() {
 				SliceInfoClient: podwh.NewWebhookClient(),
 			},
 		})
+		mgr.GetWebhookServer().Register("/validate-webhook", &webhook.Admission{
+			Handler: &podwh.WebhookServer{
+				Client:          mgr.GetClient(),
+				SliceInfoClient: podwh.NewWebhookClient(),
+			},
+		})
 	}
 	if err != nil {
 		setupLog.With("error", err).Error("unable to start manager")

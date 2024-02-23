@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/webhook/pod"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,6 +42,9 @@ func (f fakeWebhookClient) SliceAppNamespaceConfigured(ctx context.Context, slic
 }
 func (f fakeWebhookClient) GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error) {
 	return map[string]string{controllers.ApplicationNamespaceSelectorLabelKey: "green"}, nil
+}
+func (f fakeWebhookClient) GetAllServiceExports(ctx context.Context, client client.Client, slice string) (*v1beta1.ServiceExportList, error) {
+	return &v1beta1.ServiceExportList{}, nil
 }
 
 var _ = Describe("Deploy Webhook", func() {

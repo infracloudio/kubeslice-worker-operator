@@ -26,6 +26,7 @@ import (
 
 	//	"github.com/kubeslice/worker-operator/controllers"
 
+	"github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
 	"github.com/kubeslice/worker-operator/pkg/logger"
 	v1 "k8s.io/api/admission/v1"
@@ -53,6 +54,7 @@ var (
 type SliceInfoProvider interface {
 	SliceAppNamespaceConfigured(ctx context.Context, slice string, namespace string) (bool, error)
 	GetNamespaceLabels(ctx context.Context, client client.Client, namespace string) (map[string]string, error)
+	GetAllServiceExports(ctx context.Context, client client.Client, slice string) (*v1beta1.ServiceExportList, error)
 }
 type WebhookServer struct {
 	Client          client.Client
@@ -150,6 +152,27 @@ func (wh *WebhookServer) Handle(ctx context.Context, req admission.Request) admi
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 		return admission.PatchResponseFromRaw(req.Object.Raw, marshaled)
+	} else if req.Kind.Kind == "ServiceExport" {
+		serviceexport := &v1beta1.ServiceExport{}
+		err := wh.decoder.Decode(req, serviceexport)
+		if err != nil {
+			return admission.Errored(http.StatusBadRequest, err)
+		}
+		log := logger.FromContext(ctx)
+
+		log.Info("fetching all serviceexport objects belonging to the slice", "slice", serviceexport.Spec.Slice)
+		serviceExportList, err := wh.SliceInfoClient.GetAllServiceExports(context.Background(), wh.Client, serviceexport.Spec.Slice)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+
+		log.Info("validating serviceexport", "serviceexport spec", serviceexport.Spec)
+		validation, conflictingAlias := ValidateServiceExport(serviceexport.Spec, serviceExportList)
+		if !validation {
+			log.Info("serviceexport validation failed: alias already exist", "serviceexport-name", serviceexport.ObjectMeta.Name)
+			return admission.Denied(fmt.Sprintf("Alias %s already exist", conflictingAlias))
+		}
+		return admission.Allowed("")
 	}
 
 	return admission.Response{AdmissionResponse: v1.AdmissionResponse{
@@ -259,6 +282,21 @@ func MutateDaemonSet(ds *appsv1.DaemonSet, sliceName string) *appsv1.DaemonSet {
 	labels[admissionWebhookAnnotationInjectKey] = sliceName
 
 	return ds
+}
+
+func ValidateServiceExport(spec v1beta1.ServiceExportSpec, seList *v1beta1.ServiceExportList) (bool, string) {
+
+	newAliases := spec.Aliases
+
+	for _, serviceExport := range seList.Items {
+		existingAliases := serviceExport.Spec.Aliases
+		for _, newAlias := range newAliases {
+			if aliasExist(existingAliases, newAlias) {
+				return false, newAlias
+			}
+		}
+	}
+	return true, ""
 }
 
 func (wh *WebhookServer) MutationRequired(metadata metav1.ObjectMeta, ctx context.Context, kind string) (bool, string) {
