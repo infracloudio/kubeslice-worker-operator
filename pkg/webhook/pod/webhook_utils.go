@@ -2,6 +2,7 @@ package pod
 
 import (
 	"context"
+	"strings"
 
 	"github.com/kubeslice/worker-operator/api/v1beta1"
 	"github.com/kubeslice/worker-operator/controllers"
@@ -53,7 +54,7 @@ func (w *webhookClient) GetAllServiceExports(ctx context.Context, c client.Clien
 
 func aliasExist(existingAliases []string, newAlias string) bool {
 	for _, alias := range existingAliases {
-		if alias == newAlias {
+		if strings.EqualFold(alias, newAlias) {
 			return true
 		}
 	}
