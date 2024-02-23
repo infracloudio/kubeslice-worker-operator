@@ -44,12 +44,12 @@ webhooks:
       namespace: system
       path: /validate-webhook
   failurePolicy: Fail
-  name: validating-webhook.kubeslice.io
+  name: webhook.kubeslice.io
   rules:
   - apiGroups:
     - networking.kubeslice.io
     apiVersions:
-    - v1
+    - v1beta1
     operations:
     - CREATE
     - UPDATE
